@@ -30,11 +30,12 @@ class Threshold:
         self.up_threshold = 0.05  # 5% threshold for selling
         self.down_threshold = -0.03  # -3% threshold for stop-loss
         self.messenger = TelegramNotifier()
+        self.balance = BalanceChecker()
         self.usdt_amount = 0
 
     def initialize_portfolio(self):
         self.coins = self.api.get_volume_coins()
-        usdt_amount = list(filter(lambda n : n['asset'] == 'USDT', BalanceChecker().get_have_balances()))
+        usdt_amount = list(filter(lambda n : n['asset'] == 'USDT', self.balance.get_have_balances()))
         if len(usdt_amount) == 0 :
             return
         
@@ -62,27 +63,34 @@ class Threshold:
             
 
     def check_threshold_and_trade(self):
-        account_info = self.api.get_account_info()
-        for asset in account_info['balances']:
-            if asset['asset'] in self.coins:
-                symbol = f"{asset['asset']}"
-                quantity = float(asset['free'])
-                current_price = float(self.api.get_current_price(symbol))
-                purchase_price = self.usdt_amount / len(self.coins) / quantity
+        account_info = self.balance.get_have_balances()
+        print(f"check alert. balance : {account_info}")
 
-                change_ratio = (current_price - purchase_price) / purchase_price
-                if change_ratio >= self.up_threshold:
-                    self.api.create_order(symbol, 'SELL', 'MARKET', quantity)
-                    self.messenger.send_message(f"Sold {quantity} of {symbol} at {current_price}")
-                elif change_ratio <= self.down_threshold:
-                    self.api.create_order(symbol, 'SELL', 'MARKET', quantity)
-                    self.messenger.send_message(f"Stop-loss: Sold {quantity} of {symbol} at {current_price}")
+        for asset in account_info:
+            symbol = f"{asset['asset']}"
+            #account 조회 시 통화가 나오지 않는다.
+            print(symbol)
+            Dd = self.api.get_trade_info(symbol)
+            print(Dd)
+            # quantity = float(asset['free'])
+            # current_price = float(self.api.get_current_price(symbol))
+            # purchase_price = self.usdt_amount / len(self.coins) / quantity
+
+            # change_ratio = (current_price - purchase_price) / purchase_price
+            # if change_ratio >= self.up_threshold:
+            #     self.api.create_order(symbol, 'SELL', 'MARKET', quantity)
+            #     self.messenger.send_message(f"Sold {quantity} of {symbol} at {current_price}")
+            # elif change_ratio <= self.down_threshold:
+            #     self.api.create_order(symbol, 'SELL', 'MARKET', quantity)
+            #     self.messenger.send_message(f"Stop-loss: Sold {quantity} of {symbol} at {current_price}")
+            # else :
+            #     self.messenger.send_message(f"{symbol} Not Available. {change_ratio} is changed")
 
     def run(self):
         self.initialize_portfolio()
         while True:
             self.check_threshold_and_trade()
-            time.sleep(30)  # Check every 60 seconds
+            time.sleep(10)  # Check every 60 seconds
 
 api = BinanceAPI()
 bot = Threshold(api)

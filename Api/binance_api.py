@@ -45,6 +45,7 @@ class BinanceAPI:
             'symbol': symbol
         }
         response = requests.get(url, params=params)
+        print(response.json())
         return response.json()['price']
     
     #거래량이 많은 코인 다섯개를 추출합니다.
@@ -54,6 +55,13 @@ class BinanceAPI:
         data = response.json()
         data_sorted = sorted(data, key=lambda x: float(x['volume']), reverse=True)
         return [coin['symbol'] for coin in data_sorted[:5]]
+    
+    def get_exchangeInfo(self, symbol):
+        url = f"{self.base_url}/api/v3/exchangeInfo"
+        response = requests.get(url)
+        data = response.json()
+        return data
+    
     def get_lot_size(self, symbol):
         url = f"{self.base_url}/api/v3/exchangeInfo"
         response = requests.get(url)
@@ -68,6 +76,39 @@ class BinanceAPI:
                             'maxQty': filter['maxQty']
                         }
         return None
+    
+    #주문 정보를 가져옵니다.
+    def get_trade_info(self, symbol):
+        endpoint = '/api/v3/myTrades'
+        params = {
+            'symbol': symbol,
+            'timestamp': self.get_timestamp()  # 필요에 따라 변경 가능
+        }
+        headers = {
+            'X-MBX-APIKEY': self.api_key
+        }
+        response = requests.get(f"{self.base_url}{endpoint}", params=params, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+        
+
+    #주문 가격을 가져옵니다.
+    def get_order_history(self, symbol):
+        endpoint = '/api/v3/allOrders'
+        params = {
+            'symbol': symbol,
+            'limit': 1000  # 필요에 따라 변경 가능
+        }
+        headers = {
+            'X-MBX-APIKEY': self.api_key
+        }
+        response = requests.get(f"{self.base_url}{endpoint}", params=params, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
 
     def round_quantity(self, quantity, step_size):
         step_size_decimal = Decimal(step_size)
@@ -94,7 +135,6 @@ class BinanceAPI:
             'timestamp': timestamp,
             'timeInForce' : time_in_force
         }
-        print(params)
         if price:
             params['price'] = price
         query_string = '&'.join([f"{key}={value}" for key, value in params.items()])
