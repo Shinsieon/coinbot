@@ -1,7 +1,6 @@
 import websocket
 import json
-from ticker import Ticker
-from telegram_notifier import TelegramNotifier
+from LiveStream.ticker import Ticker
 
 class WebSocketClient:
     def __init__(self, url, notifier):
@@ -13,12 +12,8 @@ class WebSocketClient:
         data = json.loads(message)
         if 'k' in data:
             ticker = Ticker.from_json(data)
-            print(ticker)
-
-            # 예제 조건: 종가가 특정 값 이상일 때 텔레그램 메시지 전송
-            if float(ticker.close) > 30000:  # 예: 종가가 30000 이상일 때
-                message = f"BTCUSDT Alert! Close Price: {ticker.close}"
-                self.notifier.send_message(message)
+            self.notifier(ticker)
+            
 
     def on_error(self, ws, error):
         print(f"Error: {error}")

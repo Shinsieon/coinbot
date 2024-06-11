@@ -1,1 +1,4 @@
-config.ini
+Config/
+
+# Python specific
+__pycache__/
