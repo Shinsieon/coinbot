@@ -40,6 +40,7 @@ class BinanceAPI:
     
      # 현재 가격을 반환합니다.
     def get_current_price(self, symbol):
+        print(f"symbol : {symbol}")
         url = f"{self.base_url}/api/v3/ticker/price"
         params = {
             'symbol': symbol
@@ -48,14 +49,12 @@ class BinanceAPI:
         print(response.json())
         return response.json()['price']
     
-    #거래량이 많은 코인 다섯개를 추출합니다.
     def get_volume_coins(self):
         url = f"{self.base_url}/api/v3/ticker/24hr"
         response = requests.get(url)
         data = response.json()
-        data_sorted = sorted(data, key=lambda x: float(x['volume']), reverse=True)
-        return [coin['symbol'] for coin in data_sorted[:5]]
-    
+        return data
+        
     def get_exchangeInfo(self, symbol):
         url = f"{self.base_url}/api/v3/exchangeInfo"
         response = requests.get(url)

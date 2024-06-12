@@ -22,6 +22,7 @@ import time
 from Notifier.telegram_notifier import TelegramNotifier
 from Balance.balance_checker import BalanceChecker
 from Api.binance_api import BinanceAPI
+from decimal import Decimal
 
 class Threshold:
     def __init__(self, api = BinanceAPI()):
@@ -35,6 +36,10 @@ class Threshold:
 
     def initialize_portfolio(self):
         self.coins = self.api.get_volume_coins()
+        self.coins = list(filter(lambda n : 'USDT' in n['symbol'], self.coins))
+        self.coins = sorted(self.coins, key=lambda x: float(x['volume']), reverse=True)
+        self.coins = [coin['symbol'] for coin in self.coins[:5]]
+    
         usdt_amount = list(filter(lambda n : n['asset'] == 'USDT', self.balance.get_have_balances()))
         if len(usdt_amount) == 0 :
             return
@@ -45,7 +50,7 @@ class Threshold:
         amount_per_coin = self.usdt_amount / len(self.coins)
         orders_summary = []
         for coin in self.coins:
-            symbol = f"{coin}"
+            symbol = f"{coin}" #USDT 기준으로 거래
             current_price = self.api.get_current_price(symbol)
             quantity = amount_per_coin / float(current_price)
             try:
@@ -64,27 +69,37 @@ class Threshold:
 
     def check_threshold_and_trade(self):
         account_info = self.balance.get_have_balances()
-        print(f"check alert. balance : {account_info}")
-
+        orders_summary = []
         for asset in account_info:
-            symbol = f"{asset['asset']}"
-            #account 조회 시 통화가 나오지 않는다.
-            print(symbol)
-            Dd = self.api.get_trade_info(symbol)
-            print(Dd)
-            # quantity = float(asset['free'])
-            # current_price = float(self.api.get_current_price(symbol))
-            # purchase_price = self.usdt_amount / len(self.coins) / quantity
+            if asset['asset'] == 'USDT' :
+                continue
+            symbol = f"{asset['asset']}USDT"
+            quantity = float(asset['free'])
+            current_price = Decimal(self.api.get_current_price(symbol))
+            purchase_price = Decimal(self.usdt_amount / len(self.coins) / quantity)
 
-            # change_ratio = (current_price - purchase_price) / purchase_price
-            # if change_ratio >= self.up_threshold:
-            #     self.api.create_order(symbol, 'SELL', 'MARKET', quantity)
-            #     self.messenger.send_message(f"Sold {quantity} of {symbol} at {current_price}")
-            # elif change_ratio <= self.down_threshold:
-            #     self.api.create_order(symbol, 'SELL', 'MARKET', quantity)
-            #     self.messenger.send_message(f"Stop-loss: Sold {quantity} of {symbol} at {current_price}")
-            # else :
-            #     self.messenger.send_message(f"{symbol} Not Available. {change_ratio} is changed")
+            change_ratio = (current_price - purchase_price) / purchase_price
+            if change_ratio >= self.up_threshold:
+                try:
+                    result = self.api.create_order(symbol, 'SELL', 'LIMIT', quantity, current_price)
+                    order_summary = f"코인: {symbol}, 현재 가격: {current_price}, 주문량: {quantity}, 결과: {result}"
+                except :
+                    order_summary = f"Failed Sold {quantity} of {symbol} at {current_price}"
+            elif change_ratio <= self.down_threshold:
+                try:
+                    result = self.api.create_order(symbol, 'SELL', 'LIMIT', quantity, current_price)
+                    order_summary = f"Stop-loss: Sold {quantity} of {symbol} at {current_price}"
+                    
+                except:
+                    order_summary = f"Failed Sold {quantity} of {symbol} at {current_price}"
+            else :
+                order_summary = f"{symbol} Not Available. {change_ratio} is changed"
+            
+            orders_summary.append(order_summary)
+        
+        orders_message = "\n".join(orders_summary)
+        # 메시지 전송
+        self.messenger.send_message(f"주문 결과:\n{orders_message}")
 
     def run(self):
         self.initialize_portfolio()
