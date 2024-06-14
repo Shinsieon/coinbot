@@ -23,7 +23,6 @@ class BinanceAPI:
         return query_string
 
     def create_signature(self, query_string):
-        
         return hmac.new(self.api_secret.encode(), query_string.encode(), hashlib.sha256).hexdigest()
 
     #잔고조회
@@ -145,4 +144,15 @@ class BinanceAPI:
         url = f'{self.base_url}{endpoint}'
         response = requests.post(url, headers=headers, params=params)
         return response.json()
+    
+    def get_klines(self, symbol, interval='1d', limit=100):
+        url = f"{self.base_url}/api/v3/klines"
+        params = {
+            'symbol': symbol,
+            'interval': interval,
+            'limit': limit
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        return data
   
