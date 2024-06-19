@@ -9,10 +9,7 @@ class TelegramNotifier:
 
     def send_message(self, message):
         print(message)
-<<<<<<< HEAD
-=======
         print('test2 branch')
->>>>>>> test2
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": self.chat_id,
