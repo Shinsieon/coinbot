@@ -2,6 +2,7 @@ from Notifier.telegram_notifier import TelegramNotifier
 from Balance.balance_checker import BalanceChecker
 from Api.binance_api import BinanceAPI
 import pandas as pd
+import time
 class GoldenCross:
     def __init__(self, api = BinanceAPI()):
         self.api = api
@@ -14,17 +15,18 @@ class GoldenCross:
         return df
 
     def find_golden_crosses(self, symbols):
-        golden_crosses = []
+        up_golden_crosses = []
+        down_golden_crosses = []
         for symbol in symbols:
             data = self.api.get_klines(symbol, '1d', 300)
             df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'])
             df['close'] = df['close'].astype(float)
             df = self.calculate_moving_averages(df)
             if df['SMA_short'].iloc[-1] > df['SMA_long'].iloc[-1] and df['SMA_short'].iloc[-2] <= df['SMA_long'].iloc[-2]: #상승 골든크로스
-                golden_crosses.append(symbol)
+                up_golden_crosses.append(symbol)
             elif df['SMA_short'].iloc[-1] < df['SMA_long'].iloc[-1] and df['SMA_short'].iloc[-2] >= df['SMA_long'].iloc[-2]: #하락 골든크로스
-                golden_crosses.append(symbol)
-        return golden_crosses
+                down_golden_crosses.append(symbol)
+        return [up_golden_crosses , down_golden_crosses]
         
     def run(self):
         self.coins = self.api.get_volume_coins()
@@ -35,4 +37,6 @@ class GoldenCross:
         print("Golden Crosses:", golden_crosses)
 
 gd = GoldenCross()
-gd.run()
+while(True):
+    gd.run()
+    time.sleep(60)
