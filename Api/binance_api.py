@@ -39,7 +39,6 @@ class BinanceAPI:
     
      # 현재 가격을 반환합니다.
     def get_current_price(self, symbol):
-        print(f"symbol : {symbol}")
         url = f"{self.base_url}/api/v3/ticker/price"
         params = {
             'symbol': symbol
