@@ -187,12 +187,13 @@ symbols = get_tickers_usdt()
 
 while True:
     positions = check_position()
-    my_symbols = [item['symbol'] for item in positions]
     print(f'You have {len(positions)} opened positions')
     if len(positions) == 0:
         order = False
         if symbol != '':
             close_open_orders(symbol)
+
+    my_symbols = [item['symbol'] for item in positions]
 
     if order == False:
         for elem in symbols : 
@@ -206,7 +207,7 @@ while True:
                 print('Placing order for ', elem)
                 open_order(elem, 'buy')
                 symbol = elem
-                if len(positions) > 3 :
+                if len(positions) > 5 :
                     order = True
                 break
 
@@ -219,7 +220,7 @@ while True:
                 print('Placing order for ', elem)
                 open_order(elem, 'sell')
                 symbol = elem
-                if len(positions) > 3 :
+                if len(positions) > 5 :
                     order = True
                 break
     print("Waiting 60 secs")
