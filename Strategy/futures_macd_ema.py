@@ -15,7 +15,7 @@ client = UMFutures(key=api_key, secret=api_secret)
 
 tp = 0.01 #1% 오르면 매도
 sl = 0.01 #1% 떨어져도 매도
-volume = 50
+volume = 100
 leverage = 10 #10배율이므로 한 계약 단위는 5USDT
 type = 'ISOLATED'
 
@@ -85,13 +85,14 @@ def set_mode(symbol, type):
                 error.status_code, error.error_code, error.error_message
             )
         )
-
+#코인의 허용되는 가격 소수점 자리수를 반환합니다.
 def get_price_precision(symbol):
     resp = client.exchange_info()['symbols']
     for elem in resp:
         if elem['symbol'] == symbol:
             return elem['pricePrecision']
         
+#코인의 허용되는 수량 소수점 자리수를 반환합니다.
 def get_qty_precision(symbol):
     resp = client.exchange_info()['symbols']
     for elem in resp:
