@@ -15,7 +15,7 @@ client = UMFutures(key=api_key, secret=api_secret)
 
 tp = 0.01 #1% 오르면 매도
 sl = 0.01 #1% 떨어져도 매도
-volume = 100
+volume = 200
 leverage = 10 #10배율이므로 한 계약 단위는 5USDT
 type = 'ISOLATED'
 
