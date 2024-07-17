@@ -14,6 +14,12 @@ class BalanceChecker:
     def get_have_balances(self):
         account_info = self.get_balances()
         return [balance for balance in account_info if float(balance['free']) > 0]
+    
+class FBalanceChecker:
+    def __init__(self, client):
+        self.client = client
+
+    
 
 if __name__ == "__main__":
     bc = BalanceChecker()

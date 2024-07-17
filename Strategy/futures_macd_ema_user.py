@@ -4,20 +4,11 @@ import ta
 import pandas as pd
 from time import sleep
 from binance.error import ClientError
+import sys
 
-config = configparser.ConfigParser()
-config.read('Config/config.ini')
-api_key = config['binance']['api_key']
-api_secret = config['binance']['api_secret']
-print(api_key) 
-
+api_key = input("binance api key 를 입력해주세요 : ")
+api_secret = input("binance security key를 입력해주세요 : ")
 client = UMFutures(key=api_key, secret=api_secret)
-
-tp = 0.01 #1% 오르면 매도
-sl = 0.01 #1% 떨어져도 매도
-volume = 50
-leverage = 10 #10배율이므로 한 계약 단위는 5USDT
-type = 'ISOLATED'
 
 def get_balance_usdt():
     try:
@@ -33,9 +24,6 @@ def get_balance_usdt():
             )
         )
 
-
-print("My balance is : ", get_balance_usdt())
-
 def get_tickers_usdt():
     tickers = []
     resp = client.ticker_price()
@@ -43,8 +31,23 @@ def get_tickers_usdt():
         if 'USDT' in elem['symbol']:
             tickers.append(elem['symbol'])
     return tickers
+try:
+    account = client.account()
+    print(f"현재 보유 USDT 는 {get_balance_usdt()} 입니다.")
+except ClientError as error:
+        print(
+            "잘못된 API KEY 입니다."
+        )
+        sys.exit(1)
 
+volume = int(input("주문당 투자금액을 입력해주세요(단위 : USDT) : "))
+leverage = int(input("레버리지를 입력해주세요 : "))
+sl = float(input("손절가격(상승/하락 비율)을 백분위 단위로 입력해주세요. (예시 : 1% = 0.01) "))
+tp = float(input("익절가격(상승/하락 비율)을 백분위 단위로 입력해주세요. (예시 : 1% = 0.01) "))
+max_qty = int(input("최대 주문 수를 입력해주세요. "))
+ 
 def klines(symbol):
+
     try:
         resp = pd.DataFrame(client.klines(symbol, '1h'))
         resp = resp.iloc[:, :6]
@@ -85,6 +88,7 @@ def set_mode(symbol, type):
                 error.status_code, error.error_code, error.error_message
             )
         )
+
 #코인의 허용되는 가격 소수점 자리수를 반환합니다.
 def get_price_precision(symbol):
     resp = client.exchange_info()['symbols']
@@ -143,21 +147,20 @@ def open_order(symbol, side):
                 )
             )
 
-def check_position():
-    positions = []
+def get_pos():
     try:
         resp = client.get_position_risk()
+        pos = []
         for elem in resp:
-            if float(elem['positionAmt'])!= 0:
-                positions.append(elem)
-        
-        return positions
+            if float(elem['positionAmt']) != 0:
+                pos.append(elem['symbol'])
+        return pos
     except ClientError as error:
-            print(
-                "Found error. status: {}, error code: {}, error message: {}".format(
-                    error.status_code, error.error_code, error.error_message
-                )
+        print(
+            "Found error. status: {}, error code: {}, error message: {}".format(
+                error.status_code, error.error_code, error.error_message
             )
+        )
 
 def close_open_orders(symbol):
     try:
@@ -172,34 +175,48 @@ def close_open_orders(symbol):
 
 def check_macd_ema(symbol):
     kl = klines(symbol)
-    if ta.trend.macd_diff(kl.Close).iloc[-1] > 0 and ta.trend.macd_diff(kl.Close).iloc[-2] < 0 \
-        and ta.trend.ema_indicator(kl.Close, window=200).iloc[-1] < kl.Close.iloc[-1]:
-            return 'up'
-    elif ta.trend.macd_diff(kl.Close).iloc[-1] < 0 and ta.trend.macd_diff(kl.Close).iloc[-2] > 0 \
-        and ta.trend.ema_indicator(kl.Close, window=200).iloc[-1] > kl.Close.iloc[-1]:
-            return 'down'
-    
-    else : 
+    macd = ta.trend.macd_diff(kl.Close)
+    ema = ta.trend.ema_indicator(kl.Close, window=200)
+    if macd.iloc[-3] < 0 and macd.iloc[-2] < 0 and macd.iloc[-1] > 0 and ema.iloc[-1] < kl.Close.iloc[-1]:
+        return 'up'
+    if macd.iloc[-3] > 0 and macd.iloc[-2] > 0 and macd.iloc[-1] < 0 and ema.iloc[-1] > kl.Close.iloc[-1]:
+        return 'down'
+    else:
         return 'none'
     
-order = False
+def check_orders():
+    try:
+        response = client.get_orders(recvWindow=6000)
+        sym = []
+        for elem in response:
+            sym.append(elem['symbol'])
+        return sym
+    except ClientError as error:
+        print(
+            "Found error. status: {}, error code: {}, error message: {}".format(
+                error.status_code, error.error_code, error.error_message
+            )
+        )
+    
+orders = 0
 symbol = ''
+# getting all symbols from Binace Futures list:
 symbols = get_tickers_usdt()
 
 while True:
-    positions = check_position()
-    print(f'You have {len(positions)} opened positions')
-    if len(positions) == 0:
-        order = False
-        if symbol != '':
-            close_open_orders(symbol)
+    pos = get_pos()
+    ord = []
+    ord = check_orders()
+    print(f'{len(pos)} 개의 포지션이 있습니다.')
+    for elem in ord:
+        if not elem in pos:
+            close_open_orders(elem)
+    
 
-    #my_symbols = [item['symbol'] for item in positions]
-
-    if order == False:
-        for elem in symbols : 
+    if len(pos) < max_qty:
+        for elem in symbols:
             signal = check_macd_ema(elem)
-            if signal == 'up':
+            if signal == 'up' and elem != 'USDCUSDT' and not elem in pos and not elem in ord and elem != symbol:
                 print('Found BUY signal for ', elem)
                 set_mode(elem, type)
                 sleep(1)
@@ -212,7 +229,7 @@ while True:
                 order = True
                 break
 
-            if signal == 'down':
+            if signal == 'down' and elem != 'USDCUSDT' and not elem in pos and not elem in ord and elem != symbol:
                 print('Found SELL signal for ', elem)
                 set_mode(elem, type)
                 sleep(1)
@@ -224,5 +241,5 @@ while True:
                 #if len(positions) > 5 :
                 order = True
                 break
-    print("Waiting 60 secs")
+    print("1분동안 대기 ... ")
     sleep(60)          
