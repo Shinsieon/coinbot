@@ -9,6 +9,7 @@ import sys
 api_key = input("binance api key 를 입력해주세요 : ")
 api_secret = input("binance security key를 입력해주세요 : ")
 client = UMFutures(key=api_key, secret=api_secret)
+type = 'ISOLATED'
 
 def get_balance_usdt():
     try:
